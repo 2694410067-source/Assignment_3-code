@@ -1,0 +1,156 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 使用打靶法求解边值问题
+def shooting_method(f, exact_solution, t0, t_end, y0, y_end, h, initial_guess1, initial_guess2, tol=1e-6, max_iter=100):
+    """
+    打靶法求解边值问题
+    f: 函数，返回[x', x'']
+    exact_solution: 精确解函数
+    t0, t_end: 区间端点
+    y0, y_end: 边界条件
+    h: 步长
+    initial_guess1, initial_guess2: 初始斜率的两个猜测值
+    tol: 容差
+    max_iter: 最大迭代次数
+    """
+    
+    def solve_ode(y_prime_guess):
+        """使用RK4方法求解ODE"""
+        t_vals = [t0]
+        x_vals = [y0]
+        x_prime_vals = [y_prime_guess]
+        
+        t = t0
+        x = y0
+        x_prime = y_prime_guess
+        
+        while t < t_end:
+            # 使用RK4方法
+            k1_x, k1_v = f(t, x, x_prime)
+            k2_x, k2_v = f(t + h/2, x + h*k1_x/2, x_prime + h*k1_v/2)
+            k3_x, k3_v = f(t + h/2, x + h*k2_x/2, x_prime + h*k2_v/2)
+            k4_x, k4_v = f(t + h, x + h*k3_x, x_prime + h*k3_v)
+            
+            x = x + h * (k1_x + 2*k2_x + 2*k3_x + k4_x) / 6
+            x_prime = x_prime + h * (k1_v + 2*k2_v + 2*k3_v + k4_v) / 6
+            t = t + h
+            
+            t_vals.append(t)
+            x_vals.append(x)
+            x_prime_vals.append(x_prime)
+        
+        return np.array(t_vals), np.array(x_vals), np.array(x_prime_vals)
+    
+    # 二分法寻找正确的初始斜率
+    guess1 = initial_guess1
+    guess2 = initial_guess2
+    
+    t1, x1, _ = solve_ode(guess1)
+    error1 = x1[-1] - y_end
+    
+    t2, x2, _ = solve_ode(guess2)
+    error2 = x2[-1] - y_end
+    
+    if error1 * error2 > 0:
+        print("警告：两个初始猜测的误差同号，可能需要调整初始猜测")
+        return t1, x1, None
+    
+    for i in range(max_iter):
+        # 线性插值得到新的猜测
+        guess_new = guess2 - error2 * (guess2 - guess1) / (error2 - error1)
+        
+        t_new, x_new, _ = solve_ode(guess_new)
+        error_new = x_new[-1] - y_end
+        
+        if abs(error_new) < tol:
+            print(f"在 {i+1} 次迭代后收敛")
+            return t_new, x_new, guess_new
+        
+        # 更新猜测值
+        if error_new * error1 < 0:
+            guess2 = guess_new
+            error2 = error_new
+        else:
+            guess1 = guess_new
+            error1 = error_new
+    
+    print(f"达到最大迭代次数 {max_iter}，未收敛")
+    return t_new, x_new, guess_new
+
+# 问题1: x'' = (-2/t)x' + (2/t^2)x + (10*cos(ln t))/t^2
+# 边界条件: x(1) = 1, x(3) = -1
+
+def f1(t, x, x_prime):
+    """返回 [x', x'']"""
+    if t == 0:
+        t = 1e-10  # 避免除以零
+    x_double_prime = (-2/t)*x_prime + (2/(t**2))*x + (10*np.cos(np.log(t)))/(t**2)
+    return np.array([x_prime, x_double_prime])
+
+def exact_solution1(t):
+    """精确解"""
+    return (4.335950689 - 0.3359506908 * t**3 - 3*t**2*np.cos(np.log(t)) + t**2*np.sin(np.log(t))) / t**2
+
+# 参数设置
+t0 = 1.0
+t_end = 3.0
+x0 = 1.0
+x_end = -1.0
+h = 0.05
+
+# 初始斜率猜测
+initial_guess1 = -2.0
+initial_guess2 = 2.0
+
+# 使用打靶法求解
+t_vals, x_vals, final_guess = shooting_method(f1, exact_solution1, t0, t_end, x0, x_end, h, initial_guess1, initial_guess2)
+
+print(f"最终初始斜率猜测: {final_guess}")
+
+# 精确解
+t_exact = np.linspace(t0, t_end, 500)
+x_exact = exact_solution1(t_exact)
+
+# 计算误差
+x_exact_at_numerical = exact_solution1(t_vals)
+error = np.abs(x_vals - x_exact_at_numerical)
+
+# 绘制图形
+plt.figure(figsize=(12, 8))
+
+# 解的比较
+plt.subplot(2, 1, 1)
+plt.plot(t_exact, x_exact, 'b-', linewidth=2, label='Exact Solution')
+plt.plot(t_vals, x_vals, 'ro-', markersize=4, linewidth=1, label='Numerical Solution (Shooting Method)')
+plt.xlabel('t')
+plt.ylabel('x(t)')
+plt.title('Problem 4.1: BVP with variable coefficients')
+plt.grid(True, alpha=0.3)
+plt.legend()
+
+# 误差
+plt.subplot(2, 1, 2)
+plt.plot(t_vals, error, 'g-', linewidth=1.5)
+plt.fill_between(t_vals, 0, error, alpha=0.3, color='g')
+plt.xlabel('t')
+plt.ylabel('Absolute Error')
+plt.title('Error of Numerical Solution')
+plt.grid(True, alpha=0.3)
+
+# 添加误差统计
+max_error = np.max(error)
+plt.text(0.05, 0.95, f'Max Error: {max_error:.2e}', 
+         transform=plt.gca().transAxes, verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+plt.tight_layout()
+plt.show()
+
+# 输出误差统计
+print("="*50)
+print("Problem 4.1: BVP with variable coefficients")
+print("="*50)
+print(f"Maximum absolute error: {max_error:.6e}")
+print(f"Average absolute error: {np.mean(error):.6e}")
+print(f"RMSE: {np.sqrt(np.mean(error**2)):.6e}")
