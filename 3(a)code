@@ -1,0 +1,131 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --------------------------
+# Fix font rendering issues (support Unicode minus sign)
+# --------------------------
+plt.rcParams['font.family'] = 'DejaVu Sans'  # Universal font for English/Unicode
+plt.rcParams['axes.unicode_minus'] = True    # Ensure minus sign renders correctly
+
+# --------------------------
+# 1. Define problem-related functions (core modification)
+# --------------------------
+def f(t, y):
+    """Right-hand side of ODE: y' = t² - y"""
+    return t**2 - y
+
+def y_exact(t):
+    """Exact solution of the ODE"""
+    return -np.exp(-t) + t**2 - 2*t + 2
+
+# --------------------------
+# 2. Define three numerical methods
+# --------------------------
+def euler_method(f, t0, y0, h, t_end):
+    """Euler's Method (1st-order accuracy)"""
+    n_steps = int((t_end - t0) / h)  # Total number of steps
+    t_list = [t0]
+    y_list = [y0]
+    for _ in range(n_steps):
+        t_n = t_list[-1]
+        y_n = y_list[-1]
+        t_n1 = t_n + h
+        y_n1 = y_n + h * f(t_n, y_n)  # Euler's formula
+        t_list.append(t_n1)
+        y_list.append(y_n1)
+    return np.array(t_list), np.array(y_list)
+
+def heun_method(f, t0, y0, h, t_end):
+    """Heun's Method (Predictor-Corrector, 2nd-order accuracy)"""
+    n_steps = int((t_end - t0) / h)
+    t_list = [t0]
+    y_list = [y0]
+    for _ in range(n_steps):
+        t_n = t_list[-1]
+        y_n = y_list[-1]
+        t_n1 = t_n + h
+        # Predictor step (Euler's method)
+        y_p = y_n + h * f(t_n, y_n)
+        # Corrector step (average slope)
+        y_n1 = y_n + (h / 2) * (f(t_n, y_n) + f(t_n1, y_p))
+        t_list.append(t_n1)
+        y_list.append(y_n1)
+    return np.array(t_list), np.array(y_list)
+
+def rk4_method(f, t0, y0, h, t_end):
+    """Runge-Kutta 4th Order Method (RK4, 4th-order accuracy)"""
+    n_steps = int((t_end - t0) / h)
+    t_list = [t0]
+    y_list = [y0]
+    for _ in range(n_steps):
+        t_n = t_list[-1]
+        y_n = y_list[-1]
+        # Calculate four intermediate slopes
+        k1 = f(t_n, y_n)
+        k2 = f(t_n + h/2, y_n + h*k1/2)
+        k3 = f(t_n + h/2, y_n + h*k2/2)
+        k4 = f(t_n + h, y_n + h*k3)
+        # RK4 formula
+        y_n1 = y_n + (h/6) * (k1 + 2*k2 + 2*k3 + k4)
+        t_n1 = t_n + h
+        t_list.append(t_n1)
+        y_list.append(y_n1)
+    return np.array(t_list), np.array(y_list)
+
+# --------------------------
+# 3. Set parameters and solve the ODE
+# --------------------------
+t0 = 0.0       # Initial time
+y0 = 1.0       # Initial value (y(0) = 1)
+h = 0.1        # Step size
+t_end = 5.0    # Termination time
+
+# Call numerical methods
+t_euler, y_euler = euler_method(f, t0, y0, h, t_end)
+t_heun, y_heun = heun_method(f, t0, y0, h, t_end)
+t_rk4, y_rk4 = rk4_method(f, t0, y0, h, t_end)
+
+# Calculate exact solution (for comparison)
+t_exact = np.linspace(t0, t_end, 1000)  # Fine grid for smooth curve
+y_exact_val = y_exact(t_exact)
+
+# Calculate absolute errors (at numerical solution time points)
+err_euler = np.abs(y_euler - y_exact(t_euler))
+err_heun = np.abs(y_heun - y_exact(t_heun))
+err_rk4 = np.abs(y_rk4 - y_exact(t_rk4))
+
+# --------------------------
+# 4. Plot results (trajectory + error comparison)
+# --------------------------
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+
+# Trajectory comparison (numerical vs exact solution)
+ax1.plot(t_exact, y_exact_val, 'k-', linewidth=2, label='Exact Solution')
+ax1.plot(t_euler, y_euler, 'o-', markersize=4, label='Euler Method', alpha=0.8)
+ax1.plot(t_heun, y_heun, 's-', markersize=4, label='Heun Method', alpha=0.8)
+ax1.plot(t_rk4, y_rk4, '^-', markersize=4, label='RK4 Method', alpha=0.8)
+ax1.set_xlabel('t')
+ax1.set_ylabel('y(t)')
+ax1.set_title('Problem (a): Trajectory Comparison (y\'=t² - y, y(0)=1)')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+
+# Error comparison (log scale for better visibility)
+ax2.plot(t_euler, err_euler, 'o-', label='Euler Method Error', alpha=0.8)
+ax2.plot(t_heun, err_heun, 's-', label='Heun Method Error', alpha=0.8)
+ax2.plot(t_rk4, err_rk4, '^-', label='RK4 Method Error', alpha=0.8)
+ax2.set_xlabel('t')
+ax2.set_ylabel('Absolute Error (log scale)')
+ax2.set_yscale('log')  # Logarithmic y-axis
+ax2.set_title('Error Comparison of Numerical Methods')
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+# Print error at final time point (verify accuracy)
+print("Errors at t=5:")
+print(f"Euler Method: {err_euler[-1]:.6f}")
+print(f"Heun Method: {err_heun[-1]:.6f}")
+print(f"RK4 Method: {err_rk4[-1]:.6f}")
