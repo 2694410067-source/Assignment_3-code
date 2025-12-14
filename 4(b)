@@ -1,0 +1,128 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 使用有限差分法求解边值问题
+def finite_difference_method(a, b, alpha, beta, h, p_func, q_func, r_func):
+    """
+    有限差分法求解二阶边值问题
+    x'' = p(t)x' + q(t)x + r(t)
+    边界条件: x(a) = alpha, x(b) = beta
+    """
+    # 创建网格
+    N = int((b - a) / h)
+    t = np.linspace(a, b, N+1)
+    
+    # 初始化矩阵和右侧向量
+    A = np.zeros((N-1, N-1))
+    B = np.zeros(N-1)
+    
+    # 填充矩阵
+    for i in range(N-1):
+        ti = t[i+1]  # 内部点，跳过边界
+        
+        # 主对角线
+        A[i, i] = -2 + h**2 * q_func(ti)
+        
+        # 下对角线（除了第一行）
+        if i > 0:
+            A[i, i-1] = 1 - (h/2) * p_func(ti)
+        
+        # 上对角线（除了最后一行）
+        if i < N-2:
+            A[i, i+1] = 1 + (h/2) * p_func(ti)
+        
+        # 右侧向量
+        B[i] = -h**2 * r_func(ti)
+    
+    # 调整第一行和最后一行以考虑边界条件
+    B[0] -= (1 - (h/2) * p_func(t[1])) * alpha
+    B[-1] -= (1 + (h/2) * p_func(t[-2])) * beta
+    
+    # 求解线性系统
+    x_internal = np.linalg.solve(A, B)
+    
+    # 组合解
+    x = np.zeros(N+1)
+    x[0] = alpha
+    x[-1] = beta
+    x[1:-1] = x_internal
+    
+    return t, x
+
+# 问题2: x'' = -2x' - 2x + e^{-t} + sin(2t)
+# 边界条件: x(0) = 0.6, x(4) = -0.1
+
+def p_func(t):
+    """p(t) = -2"""
+    return -2.0
+
+def q_func(t):
+    """q(t) = -2"""
+    return -2.0
+
+def r_func(t):
+    """r(t) = e^{-t} + sin(2t)"""
+    return np.exp(-t) + np.sin(2*t)
+
+def exact_solution2(t):
+    """精确解"""
+    return (1/5 + np.exp(-t) - (1/5)*np.exp(-t)*np.cos(t) 
+            - (2/5)*np.cos(t)**2 + 3.670227413*np.exp(-t)*np.sin(t) 
+            - (1/5)*np.cos(t)*np.sin(t))
+
+# 参数设置
+a = 0.0
+b = 4.0
+alpha = 0.6
+beta = -0.1
+h = 0.05
+
+# 使用有限差分法求解
+t_vals, x_vals = finite_difference_method(a, b, alpha, beta, h, p_func, q_func, r_func)
+
+# 精确解
+t_exact = np.linspace(a, b, 500)
+x_exact = exact_solution2(t_exact)
+
+# 计算误差
+x_exact_at_numerical = exact_solution2(t_vals)
+error = np.abs(x_vals - x_exact_at_numerical)
+
+# 绘制图形
+plt.figure(figsize=(12, 8))
+
+# 解的比较
+plt.subplot(2, 1, 1)
+plt.plot(t_exact, x_exact, 'b-', linewidth=2, label='Exact Solution')
+plt.plot(t_vals, x_vals, 'ro-', markersize=4, linewidth=1, label='Numerical Solution (Finite Difference)')
+plt.xlabel('t')
+plt.ylabel('x(t)')
+plt.title('Problem 4.2: $x\'\' = -2x\' - 2x + e^{-t} + \\sin(2t)$')
+plt.grid(True, alpha=0.3)
+plt.legend()
+
+# 误差
+plt.subplot(2, 1, 2)
+plt.plot(t_vals, error, 'g-', linewidth=1.5)
+plt.fill_between(t_vals, 0, error, alpha=0.3, color='g')
+plt.xlabel('t')
+plt.ylabel('Absolute Error')
+plt.title('Error of Numerical Solution')
+plt.grid(True, alpha=0.3)
+
+# 添加误差统计
+max_error = np.max(error)
+plt.text(0.05, 0.95, f'Max Error: {max_error:.2e}', 
+         transform=plt.gca().transAxes, verticalalignment='top',
+         bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+plt.tight_layout()
+plt.show()
+
+# 输出误差统计
+print("="*50)
+print("Problem 4.2: x'' = -2x' - 2x + e^{-t} + sin(2t)")
+print("="*50)
+print(f"Maximum absolute error: {max_error:.6e}")
+print(f"Average absolute error: {np.mean(error):.6e}")
+print(f"RMSE: {np.sqrt(np.mean(error**2)):.6e}")
