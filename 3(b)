@@ -1,0 +1,126 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 定义微分方程
+def f(t, y):
+    return 3*y + 3*t
+
+# 精确解
+def exact_solution(t):
+    return (4/3)*np.exp(3*t) - t - 1/3
+
+# Euler方法
+def euler_method(f, t0, y0, h, t_end):
+    t_vals = [t0]
+    y_vals = [y0]
+    
+    t = t0
+    y = y0
+    while t < t_end:
+        y = y + h * f(t, y)
+        t = t + h
+        t_vals.append(t)
+        y_vals.append(y)
+    
+    return np.array(t_vals), np.array(y_vals)
+
+# Heun方法
+def heun_method(f, t0, y0, h, t_end):
+    t_vals = [t0]
+    y_vals = [y0]
+    
+    t = t0
+    y = y0
+    while t < t_end:
+        # 预测步
+        y_pred = y + h * f(t, y)
+        # 校正步
+        y = y + h * (f(t, y) + f(t + h, y_pred)) / 2
+        t = t + h
+        t_vals.append(t)
+        y_vals.append(y)
+    
+    return np.array(t_vals), np.array(y_vals)
+
+# RK4方法
+def rk4_method(f, t0, y0, h, t_end):
+    t_vals = [t0]
+    y_vals = [y0]
+    
+    t = t0
+    y = y0
+    while t < t_end:
+        k1 = h * f(t, y)
+        k2 = h * f(t + h/2, y + k1/2)
+        k3 = h * f(t + h/2, y + k2/2)
+        k4 = h * f(t + h, y + k3)
+        
+        y = y + (k1 + 2*k2 + 2*k3 + k4) / 6
+        t = t + h
+        t_vals.append(t)
+        y_vals.append(y)
+    
+    return np.array(t_vals), np.array(y_vals)
+
+# 参数设置
+t0 = 0.0
+y0 = 1.0
+t_end = 5.0
+h = 0.1
+
+# 使用三种方法求解
+t_euler, y_euler = euler_method(f, t0, y0, h, t_end)
+t_heun, y_heun = heun_method(f, t0, y0, h, t_end)
+t_rk4, y_rk4 = rk4_method(f, t0, y0, h, t_end)
+
+# 精确解
+t_exact = np.linspace(t0, t_end, 500)
+y_exact = exact_solution(t_exact)
+
+# 计算误差
+error_euler = np.abs(y_euler - exact_solution(t_euler))
+error_heun = np.abs(y_heun - exact_solution(t_heun))
+error_rk4 = np.abs(y_rk4 - exact_solution(t_rk4))
+
+# 绘制轨迹
+plt.figure(figsize=(12, 10))
+
+# 轨迹图
+plt.subplot(2, 1, 1)
+plt.plot(t_exact, y_exact, 'k-', linewidth=2, label='Exact Solution')
+plt.plot(t_euler, y_euler, 'ro-', markersize=4, linewidth=1, label='Euler Method')
+plt.plot(t_heun, y_heun, 'bs-', markersize=4, linewidth=1, label='Heun Method')
+plt.plot(t_rk4, y_rk4, 'g^-', markersize=4, linewidth=1, label='RK4 Method')
+plt.xlabel('t')
+plt.ylabel('y(t)')
+plt.title('Problem 2: $y\' = 3y + 3t$, $y(0)=1$')
+plt.grid(True, alpha=0.3)
+plt.legend()
+
+# 误差图
+plt.subplot(2, 1, 2)
+plt.semilogy(t_euler, error_euler, 'ro-', markersize=4, linewidth=1, label='Euler Error')
+plt.semilogy(t_heun, error_heun, 'bs-', markersize=4, linewidth=1, label='Heun Error')
+plt.semilogy(t_rk4, error_rk4, 'g^-', markersize=4, linewidth=1, label='RK4 Error')
+plt.xlabel('t')
+plt.ylabel('Absolute Error (log scale)')
+plt.title('Errors of Different Methods')
+plt.grid(True, alpha=0.3)
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+# 输出误差统计
+print("="*50)
+print("Problem 2: y' = 3y + 3t, y(0)=1")
+print("="*50)
+print("Maximum Errors:")
+print(f"  Euler: {np.max(error_euler):.6e}")
+print(f"  Heun:  {np.max(error_heun):.6e}")
+print(f"  RK4:   {np.max(error_rk4):.6e}")
+print("\nFinal Values at t=5:")
+print(f"  Exact: {exact_solution(5):.6f}")
+print(f"  Euler: {y_euler[-1]:.6f}")
+print(f"  Heun:  {y_heun[-1]:.6f}")
+print(f"  RK4:   {y_rk4[-1]:.6f}")
